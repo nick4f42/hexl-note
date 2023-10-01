@@ -1,0 +1,99 @@
+#+title: hexl-note.el - Hexl Mode Annotations
+#+author: Nick OBrien
+
+Hexl Note allows annotating sequences of bytes in =hexl-mode= buffers.
+
+#+begin_src python :results none :exports none
+import struct
+from math import nan, inf
+with open("example.dat", "wb") as file:
+    file.write(struct.pack(">2i", 125, 126))
+    file.write(struct.pack("<2i", -321, -123456))
+    file.write(struct.pack("<dff", 1.23e-5, -inf, nan))
+    file.write(" hexl 💬 note ".encode("utf8"))
+#+end_src
+
+#+begin_example
+00000000: 0000 007d 0000 007e ffff febf fffe 1dc0  ...}...~........
+00000010: 7050 b120 83cb e93e 0000 80ff 0000 c07f  pP. ...>........
+00000020: 2068 6578 6c20 f09f 92ac 206e 6f74 6520   hexl .... note 
+#+end_example
+
+With the default configuration, running:
+- =M-2 C-c C-i i 4 RET b=
+- =M-2 C-c C-i i 4 RET l=
+- =C-c C-i f 8 RET l=
+- =M-2 C-c C-i f 4 RET l=
+- =M-16 C-c C-a (decode-coding-string bytes 'utf-8) RET=
+
+Gives:
+#+begin_example
+00000000: 0000 007d 0000 007e bffe ffff c01d feff  ...}...~........
+          <-------> <-------> <-------> <------->
+          BE:125    BE:126    LE:-321   LE:-123456
+00000010: 7050 b120 83cb e93e 0000 80ff 0000 c07f  pP. ...>........
+          <-----------------> <-------> <------->
+          LE:1.23e-05         LE:-inf   LE:nan
+00000020: 2068 6578 6c20 f09f 92ac 206e 6f74 6520   hexl .... note 
+          <------------------------------------->
+           hexl 💬 note 
+#+end_example
+
+* Installation
+
+With =use-package= and [[https://github.com/radian-software/straight.el][straight.el]]:
+
+#+begin_src emacs-lisp :results none
+(use-package hexl-note
+  :straight
+  (hexl-note :type git :host github :repo "nick4f42/hexl-note"))
+#+end_src
+
+Otherwise, clone this repo and add it to the =load-path=.
+
+* Usage
+
+Enter =hexl-note-mode= from a =hexl-mode= buffer.
+
+Create annotations with:
+- =hexl-note-annotate= (=C-c C-a=)
+- =hexl-note-annotate-number= (=C-c C-i=)
+
+Select annotations with:
+- =hexl-note-previous-annot= (=C-c C-p=)
+- =hexl-note-next-annot= (=C-c C-n=)
+
+Delete annotations with:
+- =hexl-note-delete-selected= (=C-c C-d=)
+- =hexl-note-delete-all=
+
+* Example Configuration
+
+#+begin_src emacs-lisp :results none
+(use-package hexl-note
+  :hook (hexl-mode . hexl-note-mode)
+  :config
+
+  ;; Add more padding around annotation text.
+  (setq hexl-note-padding 2)
+
+  ;; Use unicode arrows.
+  (setq hexl-note-arrow-string '(hexl-note-arrow ?└ ?─ ?┘ ?╵))
+
+  ;; When using `hexl-note-annotate-number', the default requires specifying
+  ;; the type (i, u, or f) and the size:
+  (setq hexl-note-number-types
+	'((?i "signed integer" int nil)
+	  (?u "unsigned integer" uint nil)
+	  (?f "floating point" float nil)))
+  ;; Instead, give each character a specific size.
+  (setq hexl-note-number-types
+	'((?c "char" int 1)
+	  (?C "unsigned char" uint 1)
+	  (?s "short" int 2)
+	  (?S "unsigned short" uint 2)
+	  (?i "int" int 4)
+	  (?I "unsigned int" uint 4)
+	  (?f "float" float 4)
+	  (?d "double" float 8))))
+#+end_src
